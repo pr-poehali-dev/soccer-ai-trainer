@@ -261,26 +261,29 @@ function ProjectsSidebar({ projects, activeId, onSelect, onCreate, onDelete, onR
   };
 
   return (
-    <div className="flex flex-col w-56 flex-shrink-0 border-r border-border overflow-hidden"
+    <div className="flex flex-col w-44 flex-shrink-0 border-r border-border overflow-hidden"
       style={{ background: "hsl(216 18% 10%)" }}>
-      <div className="px-3 py-3 border-b border-border flex items-center justify-between">
+      {/* Header */}
+      <div className="px-3 py-2.5 border-b border-border flex items-center justify-between">
         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Проекты</span>
         <button onClick={onCreate}
-          className="w-6 h-6 rounded flex items-center justify-center hover:bg-secondary transition-colors"
+          className="w-5 h-5 rounded flex items-center justify-center hover:bg-secondary transition-colors"
           title="Новый проект">
-          <Icon name="Plus" size={14} className="text-muted-foreground" />
+          <Icon name="Plus" size={13} className="text-muted-foreground" />
         </button>
       </div>
 
+      {/* List */}
       <div className="flex-1 overflow-y-auto py-1">
         {projects.map(p => (
           <div key={p.id}
             onClick={() => onSelect(p.id)}
-            className={`group flex items-center gap-2 px-3 py-2 mx-1 rounded-lg cursor-pointer transition-colors ${
-              p.id === activeId ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+            className={`group flex items-center gap-1.5 px-2 py-1.5 mx-1 rounded-md cursor-pointer transition-colors ${
+              p.id === activeId ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
             }`}
             style={p.id === activeId ? { background: "hsl(216 14% 20%)" } : {}}>
-            <Icon name="MessageSquare" size={13} className="flex-shrink-0" style={{ color: p.id === activeId ? "hsl(204 80% 52%)" : undefined }} />
+            <Icon name="MessageSquare" size={12} className="flex-shrink-0"
+              style={{ color: p.id === activeId ? "hsl(204 80% 52%)" : undefined }} />
 
             {editingId === p.id ? (
               <input
@@ -293,18 +296,18 @@ function ProjectsSidebar({ projects, activeId, onSelect, onCreate, onDelete, onR
                 className="flex-1 text-xs bg-transparent border-none outline-none text-foreground min-w-0"
               />
             ) : (
-              <span className="flex-1 text-xs truncate">{p.name}</span>
+              <span className="flex-1 text-xs truncate leading-tight">{p.name}</span>
             )}
 
             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
               <button onClick={e => startEdit(p, e)}
-                className="w-5 h-5 rounded flex items-center justify-center hover:bg-secondary transition-colors">
-                <Icon name="Pencil" size={11} />
+                className="w-4 h-4 rounded flex items-center justify-center hover:bg-secondary transition-colors">
+                <Icon name="Pencil" size={10} />
               </button>
               {projects.length > 1 && (
                 <button onClick={e => { e.stopPropagation(); onDelete(p.id); }}
-                  className="w-5 h-5 rounded flex items-center justify-center hover:bg-destructive/20 transition-colors">
-                  <Icon name="Trash2" size={11} className="text-destructive" />
+                  className="w-4 h-4 rounded flex items-center justify-center hover:bg-destructive/20 transition-colors">
+                  <Icon name="Trash2" size={10} className="text-destructive" />
                 </button>
               )}
             </div>
@@ -312,8 +315,11 @@ function ProjectsSidebar({ projects, activeId, onSelect, onCreate, onDelete, onR
         ))}
       </div>
 
+      {/* Footer */}
       <div className="px-3 py-2 border-t border-border">
-        <p className="text-xs text-muted-foreground font-mono-custom">{projects.length} проект{projects.length === 1 ? "" : projects.length < 5 ? "а" : "ов"}</p>
+        <p className="text-xs text-muted-foreground font-mono-custom opacity-60">
+          {projects.length} / ∞
+        </p>
       </div>
     </div>
   );
@@ -444,24 +450,25 @@ export default function Index() {
     <div className="min-h-screen flex flex-col" style={{ background: "hsl(216 18% 9%)" }}>
 
       {/* Header */}
-      <header className="flex items-center justify-between px-5 py-3 border-b border-border flex-shrink-0"
+      <header className="flex items-center justify-between px-4 py-2 border-b border-border flex-shrink-0"
         style={{ background: "hsl(216 18% 11%)" }}>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <button onClick={() => setSidebarOpen(v => !v)}
-            className="w-7 h-7 rounded flex items-center justify-center hover:bg-secondary transition-colors">
-            <Icon name="PanelLeft" size={15} className="text-muted-foreground" />
+            className="w-6 h-6 rounded flex items-center justify-center hover:bg-secondary transition-colors"
+            title={sidebarOpen ? "Скрыть панель" : "Показать панель"}>
+            <Icon name="PanelLeft" size={14} className="text-muted-foreground" />
           </button>
-          <div className="w-7 h-7 rounded flex items-center justify-center" style={{ background: "hsl(204 80% 52%)" }}>
-            <Icon name="Bot" size={15} className="text-background" />
+          <div className="w-6 h-6 rounded flex items-center justify-center" style={{ background: "hsl(204 80% 52%)" }}>
+            <Icon name="Bot" size={13} className="text-background" />
           </div>
-          <span className="font-semibold tracking-tight" style={{ fontFamily: "'IBM Plex Sans'" }}>ИИ Тренер</span>
-          <Badge variant="outline" className="text-xs font-mono-custom border-border text-muted-foreground">AI</Badge>
+          <span className="font-semibold text-sm tracking-tight" style={{ fontFamily: "'IBM Plex Sans'" }}>ИИ Тренер</span>
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono-custom border-border text-muted-foreground">AI</Badge>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
           {(["chat", "settings"] as const).map(tab => (
             <button key={tab} onClick={() => setActivePanel(tab)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
                 activePanel === tab ? "text-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
               style={activePanel === tab ? { background: "hsl(216 14% 20%)" } : {}}>
@@ -471,7 +478,7 @@ export default function Index() {
           ))}
           {hasAnalysis && (
             <button onClick={handleSaveReport}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
               <Icon name="Download" size={12} />
               Отчёт
             </button>
@@ -498,49 +505,49 @@ export default function Index() {
         {activePanel === "chat" && (
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Project name bar */}
-            <div className="px-4 py-2 border-b border-border flex items-center gap-2"
-              style={{ background: "hsl(216 18% 11%)" }}>
-              <Icon name="FolderOpen" size={13} style={{ color: "hsl(204 80% 52%)" }} />
+            <div className="px-4 py-1.5 border-b border-border flex items-center gap-2"
+              style={{ background: "hsl(216 18% 10%)" }}>
+              <Icon name="FolderOpen" size={12} style={{ color: "hsl(204 80% 52%)" }} />
               <span className="text-xs font-medium text-foreground">{activeProject.name}</span>
-              <span className="text-xs text-muted-foreground font-mono-custom">
-                · {activeProject.createdAt.toLocaleDateString("ru-RU")}
+              <span className="text-xs text-muted-foreground font-mono-custom opacity-60">
+                {activeProject.createdAt.toLocaleDateString("ru-RU")}
               </span>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 py-5 space-y-5 max-w-3xl mx-auto w-full">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 max-w-4xl mx-auto w-full">
               {messages.map(msg => <MessageBubble key={msg.id} msg={msg} />)}
               {isTyping && <TypingIndicator />}
               <div ref={messagesEndRef} />
             </div>
 
             {/* Input */}
-            <div className="flex-shrink-0 border-t border-border px-4 py-3" style={{ background: "hsl(216 18% 11%)" }}>
-              <div className="max-w-3xl mx-auto">
+            <div className="flex-shrink-0 border-t border-border px-6 py-3" style={{ background: "hsl(216 18% 11%)" }}>
+              <div className="max-w-4xl mx-auto">
                 {attachment && (
                   <div className="mb-2 flex items-start">
                     <div className="relative">
-                      <div className="rounded-xl overflow-hidden h-20 max-w-[120px]">
+                      <div className="rounded-lg overflow-hidden h-16 max-w-[100px]">
                         {attachment.type === "image"
                           ? <img src={attachment.url} alt={attachment.name} className="h-full w-full object-cover" />
                           : <video src={attachment.url} className="h-full w-full object-cover" />
                         }
                       </div>
                       <button onClick={removeAttachment}
-                        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center"
+                        className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center"
                         style={{ background: "hsl(4 70% 52%)", color: "#fff" }}>
-                        <Icon name="X" size={10} />
+                        <Icon name="X" size={9} />
                       </button>
-                      <div className="text-xs text-muted-foreground font-mono-custom mt-1 max-w-[120px] truncate">{attachment.name}</div>
+                      <div className="text-[10px] text-muted-foreground font-mono-custom mt-0.5 max-w-[100px] truncate">{attachment.name}</div>
                     </div>
                   </div>
                 )}
 
                 <div className="flex items-end gap-2">
                   <button onClick={() => fileInputRef.current?.click()}
-                    className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors mb-0.5"
+                    className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors mb-0.5"
                     style={{ background: "hsl(216 14% 20%)", border: "1px solid hsl(216 14% 26%)" }}
                     title="Прикрепить фото или видео">
-                    <Icon name="Paperclip" size={16} className="text-muted-foreground" />
+                    <Icon name="Paperclip" size={14} className="text-muted-foreground" />
                   </button>
                   <input ref={fileInputRef} type="file" accept="image/*,video/*" className="hidden" onChange={handleFileChange} />
 
@@ -549,30 +556,30 @@ export default function Index() {
                     onChange={e => setInputText(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Спросите про технику удара..."
-                    rows={1}
-                    className="flex-1 resize-none text-sm leading-relaxed min-h-[40px] max-h-[120px] overflow-y-auto focus-visible:ring-0 focus-visible:ring-offset-0"
+                    rows={2}
+                    className="flex-1 resize-none text-sm leading-relaxed min-h-[56px] max-h-[160px] overflow-y-auto focus-visible:ring-0 focus-visible:ring-offset-0"
                     style={{
                       background: "hsl(216 14% 17%)",
                       border: "1px solid hsl(216 14% 24%)",
                       color: "hsl(210 20% 85%)",
-                      borderRadius: "14px",
-                      padding: "9px 14px",
+                      borderRadius: "12px",
+                      padding: "10px 14px",
                     }}
                   />
 
                   <Button onClick={sendMessage} disabled={!canSend} size="sm"
-                    className="flex-shrink-0 w-9 h-9 rounded-xl p-0 mb-0.5 border-none"
+                    className="flex-shrink-0 w-8 h-8 rounded-lg p-0 mb-0.5 border-none"
                     style={{
                       background: canSend ? "hsl(204 80% 52%)" : "hsl(216 14% 20%)",
                       color: canSend ? "hsl(216 18% 8%)" : "hsl(215 15% 40%)",
                       transition: "background 0.2s",
                     }}>
-                    <Icon name="ArrowUp" size={16} />
+                    <Icon name="ArrowUp" size={15} />
                   </Button>
                 </div>
 
-                <p className="text-xs text-center mt-2 font-mono-custom" style={{ color: "hsl(215 15% 35%)" }}>
-                  Enter — отправить · Shift+Enter — перенос строки
+                <p className="text-[10px] text-center mt-1.5 font-mono-custom" style={{ color: "hsl(215 15% 32%)" }}>
+                  Enter — отправить · Shift+Enter — перенос
                 </p>
               </div>
             </div>
