@@ -337,6 +337,7 @@ export default function Index() {
   const [isTyping, setIsTyping]       = useState(false);
   const [activePanel, setActivePanel] = useState<"chat" | "settings">("chat");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [reportOpen, setReportOpen]   = useState(false);
 
   const fileInputRef   = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -476,13 +477,18 @@ export default function Index() {
               {tab === "chat" ? "Чат" : "Настройки"}
             </button>
           ))}
-          {hasAnalysis && (
-            <button onClick={handleSaveReport}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
-              <Icon name="Download" size={12} />
-              Отчёт
-            </button>
-          )}
+          <button
+            onClick={() => setReportOpen(v => !v)}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${
+              reportOpen ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
+            style={reportOpen ? { background: "hsl(216 14% 20%)" } : {}}>
+            <Icon name="FileText" size={12} />
+            Отчёт
+            {hasAnalysis && (
+              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "hsl(204 80% 52%)", boxShadow: "0 0 5px hsl(204 80% 52% / 0.7)" }} />
+            )}
+          </button>
         </div>
       </header>
 
@@ -622,6 +628,157 @@ export default function Index() {
                 Сбросить к умолчаниям
               </Button>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Report Drawer ── */}
+      {/* Backdrop */}
+      {reportOpen && (
+        <div
+          className="fixed inset-0 z-40"
+          style={{ background: "rgba(0,0,0,0.35)" }}
+          onClick={() => setReportOpen(false)}
+        />
+      )}
+
+      {/* Panel */}
+      <div
+        className="fixed top-0 right-0 h-full z-50 flex flex-col border-l border-border"
+        style={{
+          width: "340px",
+          background: "hsl(216 18% 11%)",
+          transform: reportOpen ? "translateX(0)" : "translateX(100%)",
+          transition: "transform 0.25s cubic-bezier(0.4,0,0.2,1)",
+          boxShadow: reportOpen ? "-8px 0 32px rgba(0,0,0,0.4)" : "none",
+        }}
+      >
+        {/* Drawer header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <Icon name="FileText" size={14} style={{ color: "hsl(204 80% 52%)" }} />
+            <span className="text-sm font-semibold text-foreground">Отчёт</span>
+            <span className="text-xs text-muted-foreground font-mono-custom truncate max-w-[120px]">
+              {activeProject.name}
+            </span>
+          </div>
+          <button
+            onClick={() => setReportOpen(false)}
+            className="w-6 h-6 rounded flex items-center justify-center hover:bg-secondary transition-colors"
+          >
+            <Icon name="X" size={14} className="text-muted-foreground" />
+          </button>
+        </div>
+
+        {/* Drawer content */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+          {!hasAnalysis ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+              <div className="w-12 h-12 rounded-xl border border-border flex items-center justify-center"
+                style={{ background: "hsl(216 16% 16%)" }}>
+                <Icon name="FileSearch" size={20} className="text-muted-foreground" />
+              </div>
+              <p className="text-sm text-muted-foreground">Нет данных для отчёта</p>
+              <p className="text-xs text-muted-foreground opacity-60">Загрузи видео или фото и запроси анализ</p>
+            </div>
+          ) : (() => {
+            const last = [...messages].reverse().find(m => m.analysisResult);
+            if (!last?.analysisResult) return null;
+            const r = last.analysisResult;
+            return (
+              <>
+                {/* Meta */}
+                <div className="panel p-3 space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Проект</span>
+                    <span className="text-foreground font-medium">{activeProject.name}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Дата</span>
+                    <span className="font-mono-custom text-foreground">{new Date().toLocaleDateString("ru-RU")}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Сообщений</span>
+                    <span className="font-mono-custom text-foreground">{messages.length}</span>
+                  </div>
+                </div>
+
+                {/* Scores */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Оценки</p>
+                  {r.scores.map((s, i) => (
+                    <div key={i} className="space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">{s.label}</span>
+                        <span className="font-mono-custom font-semibold" style={{ color: STATUS_COLOR[s.status] }}>{s.value}%</span>
+                      </div>
+                      <ScoreBar value={s.value} status={s.status} />
+                    </div>
+                  ))}
+                </div>
+
+                <Separator className="bg-border" />
+
+                {/* Angles */}
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Углы суставов</p>
+                  {r.angles.map((a, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs">
+                      <div className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                        style={{ background: a.value >= a.threshold ? "#4ade80" : "#f87171" }} />
+                      <span className="text-muted-foreground flex-1">{a.name}</span>
+                      <span className="font-mono-custom" style={{ color: a.value >= a.threshold ? "#4ade80" : "#f87171" }}>{a.value}°</span>
+                      <span className="font-mono-custom text-muted-foreground">/{a.threshold}°</span>
+                    </div>
+                  ))}
+                </div>
+
+                <Separator className="bg-border" />
+
+                {/* Notes */}
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Заметки ИИ</p>
+                  {r.notes.map((n, i) => (
+                    <div key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                      <Icon name="ChevronRight" size={11} className="mt-0.5 flex-shrink-0" style={{ color: "hsl(204 80% 52%)" }} />
+                      <span>{n}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <Separator className="bg-border" />
+
+                {/* Thresholds */}
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Пороги</p>
+                  {[
+                    ["Локоть мин.", `${thresholds.elbowMin}°`],
+                    ["Бедро мин.", `${thresholds.hipMin}°`],
+                    ["Колено мин.", `${thresholds.kneeMin}°`],
+                    ["Плечо макс.", `${thresholds.shoulderMax}°`],
+                  ].map(([label, val]) => (
+                    <div key={label} className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">{label}</span>
+                      <span className="font-mono-custom text-foreground">{val}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
+        </div>
+
+        {/* Drawer footer */}
+        {hasAnalysis && (
+          <div className="flex-shrink-0 border-t border-border px-4 py-3">
+            <Button
+              className="w-full gap-2 h-9 text-sm font-medium"
+              style={{ background: "hsl(204 80% 52%)", color: "hsl(216 18% 8%)" }}
+              onClick={handleSaveReport}
+            >
+              <Icon name="Download" size={14} />
+              Скачать отчёт .txt
+            </Button>
           </div>
         )}
       </div>
