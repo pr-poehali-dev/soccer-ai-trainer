@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Attachment {
   type: "image" | "video";
@@ -36,13 +36,23 @@ interface Thresholds {
   shoulderMax: number;
 }
 
-// ── Constants ────────────────────────────────────────────────────────────────
+interface Project {
+  id: string;
+  name: string;
+  createdAt: Date;
+  messages: Message[];
+  thresholds: Thresholds;
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
 
 const STATUS_COLOR: Record<string, string> = {
   good: "#4ade80",
   warn: "#fbbf24",
   bad: "#f87171",
 };
+
+const DEFAULT_THRESHOLDS: Thresholds = { elbowMin: 110, hipMin: 30, kneeMin: 130, shoulderMax: 45 };
 
 const MOCK_ANALYSIS: AnalysisResult = {
   scores: [
@@ -95,11 +105,18 @@ function getAiReply(text: string, hasAttachment: boolean): { text: string; analy
   else if (/скорост|быстр/.test(lower)) replies = AI_REPLIES.speed;
   else if (/локот|elbow/.test(lower)) replies = AI_REPLIES.elbow;
   else if (/баланс|равновес/.test(lower)) replies = AI_REPLIES.balance;
-  const reply = replies[Math.floor(Math.random() * replies.length)];
-  return { text: reply, analysis: hasAttachment ? MOCK_ANALYSIS : undefined };
+  return { text: replies[Math.floor(Math.random() * replies.length)], analysis: hasAttachment ? MOCK_ANALYSIS : undefined };
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+function makeWelcomeMessage(): Message {
+  return { id: "0", role: "ai", text: "Привет! Я ИИ Тренер — помогу проанализировать технику удара. Загрузи видео или фото и задай вопрос.", timestamp: new Date() };
+}
+
+function newProject(name: string): Project {
+  return { id: Date.now().toString(), name, createdAt: new Date(), messages: [makeWelcomeMessage()], thresholds: { ...DEFAULT_THRESHOLDS } };
+}
+
+// ── Sub-components ─────────────────────────────────────────────────────────────
 
 function ScoreBar({ value, status }: { value: number; status: "good" | "warn" | "bad" }) {
   const color = STATUS_COLOR[status];
@@ -157,11 +174,10 @@ function AnalysisCard({ result }: { result: AnalysisResult }) {
 function AttachmentPreview({ attachment }: { attachment: Attachment }) {
   return (
     <div className="relative rounded-xl overflow-hidden h-36 max-w-[200px] mb-2">
-      {attachment.type === "image" ? (
-        <img src={attachment.url} alt={attachment.name} className="h-full w-full object-cover" />
-      ) : (
-        <video src={attachment.url} className="h-full w-full object-cover" />
-      )}
+      {attachment.type === "image"
+        ? <img src={attachment.url} alt={attachment.name} className="h-full w-full object-cover" />
+        : <video src={attachment.url} className="h-full w-full object-cover" />
+      }
       <div className="absolute bottom-0 left-0 right-0 px-2 py-1 text-xs truncate font-mono-custom"
         style={{ background: "rgba(0,0,0,0.65)", color: "#aaa" }}>
         {attachment.name}
@@ -178,12 +194,12 @@ function MessageBubble({ msg }: { msg: Message }) {
         style={{ background: isUser ? "hsl(216 14% 22%)" : "hsl(204 80% 52%)" }}>
         {isUser
           ? <Icon name="User" size={13} className="text-muted-foreground" />
-          : <Icon name="Activity" size={13} className="text-background" />
+          : <Icon name="Bot" size={13} className="text-background" />
         }
       </div>
       <div className={`flex flex-col gap-1 max-w-[78%] ${isUser ? "items-end" : "items-start"}`}>
         <div className="text-xs text-muted-foreground font-mono-custom px-1">
-          {isUser ? "Тренер" : "Strike AI"} · {msg.timestamp.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
+          {isUser ? "Тренер" : "ИИ Тренер"} · {msg.timestamp.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
         </div>
         <div className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${isUser ? "rounded-tr-sm" : "rounded-tl-sm"}`}
           style={{
@@ -205,7 +221,7 @@ function TypingIndicator() {
     <div className="flex gap-3 animate-fade-in">
       <div className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center"
         style={{ background: "hsl(204 80% 52%)" }}>
-        <Icon name="Activity" size={13} className="text-background" />
+        <Icon name="Bot" size={13} className="text-background" />
       </div>
       <div className="rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1.5"
         style={{ background: "hsl(216 16% 16%)", border: "1px solid hsl(216 14% 22%)" }}>
@@ -218,27 +234,146 @@ function TypingIndicator() {
   );
 }
 
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+
+interface SidebarProps {
+  projects: Project[];
+  activeId: string;
+  onSelect: (id: string) => void;
+  onCreate: () => void;
+  onDelete: (id: string) => void;
+  onRename: (id: string, name: string) => void;
+}
+
+function ProjectsSidebar({ projects, activeId, onSelect, onCreate, onDelete, onRename }: SidebarProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName]   = useState("");
+
+  const startEdit = (p: Project, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingId(p.id);
+    setEditName(p.name);
+  };
+
+  const commitEdit = (id: string) => {
+    if (editName.trim()) onRename(id, editName.trim());
+    setEditingId(null);
+  };
+
+  return (
+    <div className="flex flex-col w-56 flex-shrink-0 border-r border-border overflow-hidden"
+      style={{ background: "hsl(216 18% 10%)" }}>
+      <div className="px-3 py-3 border-b border-border flex items-center justify-between">
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Проекты</span>
+        <button onClick={onCreate}
+          className="w-6 h-6 rounded flex items-center justify-center hover:bg-secondary transition-colors"
+          title="Новый проект">
+          <Icon name="Plus" size={14} className="text-muted-foreground" />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto py-1">
+        {projects.map(p => (
+          <div key={p.id}
+            onClick={() => onSelect(p.id)}
+            className={`group flex items-center gap-2 px-3 py-2 mx-1 rounded-lg cursor-pointer transition-colors ${
+              p.id === activeId ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+            }`}
+            style={p.id === activeId ? { background: "hsl(216 14% 20%)" } : {}}>
+            <Icon name="MessageSquare" size={13} className="flex-shrink-0" style={{ color: p.id === activeId ? "hsl(204 80% 52%)" : undefined }} />
+
+            {editingId === p.id ? (
+              <input
+                autoFocus
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+                onBlur={() => commitEdit(p.id)}
+                onKeyDown={e => { if (e.key === "Enter") commitEdit(p.id); if (e.key === "Escape") setEditingId(null); }}
+                onClick={e => e.stopPropagation()}
+                className="flex-1 text-xs bg-transparent border-none outline-none text-foreground min-w-0"
+              />
+            ) : (
+              <span className="flex-1 text-xs truncate">{p.name}</span>
+            )}
+
+            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+              <button onClick={e => startEdit(p, e)}
+                className="w-5 h-5 rounded flex items-center justify-center hover:bg-secondary transition-colors">
+                <Icon name="Pencil" size={11} />
+              </button>
+              {projects.length > 1 && (
+                <button onClick={e => { e.stopPropagation(); onDelete(p.id); }}
+                  className="w-5 h-5 rounded flex items-center justify-center hover:bg-destructive/20 transition-colors">
+                  <Icon name="Trash2" size={11} className="text-destructive" />
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="px-3 py-2 border-t border-border">
+        <p className="text-xs text-muted-foreground font-mono-custom">{projects.length} проект{projects.length === 1 ? "" : projects.length < 5 ? "а" : "ов"}</p>
+      </div>
+    </div>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
+const INITIAL_PROJECT = newProject("Тренировка #1");
+
 export default function Index() {
-  const [messages, setMessages] = useState<Message[]>([{
-    id: "0",
-    role: "ai",
-    text: "Привет! Я Strike AI — помогу проанализировать технику удара. Загрузи видео или фото и задай вопрос.",
-    timestamp: new Date(),
-  }]);
+  const [projects, setProjects]       = useState<Project[]>([INITIAL_PROJECT]);
+  const [activeId, setActiveId]       = useState<string>(INITIAL_PROJECT.id);
   const [inputText, setInputText]     = useState("");
   const [attachment, setAttachment]   = useState<Attachment | null>(null);
   const [isTyping, setIsTyping]       = useState(false);
   const [activePanel, setActivePanel] = useState<"chat" | "settings">("chat");
-  const [thresholds, setThresholds]   = useState<Thresholds>({ elbowMin: 110, hipMin: 30, kneeMin: 130, shoulderMax: 45 });
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const fileInputRef   = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const activeProject = projects.find(p => p.id === activeId)!;
+  const messages   = activeProject.messages;
+  const thresholds = activeProject.thresholds;
+
+  const updateProject = useCallback((id: string, patch: Partial<Project>) => {
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, ...patch } : p));
+  }, []);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
+
+  const handleCreateProject = useCallback(() => {
+    const p = newProject(`Тренировка #${projects.length + 1}`);
+    setProjects(prev => [...prev, p]);
+    setActiveId(p.id);
+    setInputText("");
+    setAttachment(null);
+    setIsTyping(false);
+  }, [projects.length]);
+
+  const handleDeleteProject = useCallback((id: string) => {
+    setProjects(prev => {
+      const next = prev.filter(p => p.id !== id);
+      if (id === activeId) setActiveId(next[next.length - 1].id);
+      return next;
+    });
+  }, [activeId]);
+
+  const handleRenameProject = useCallback((id: string, name: string) => {
+    updateProject(id, { name });
+  }, [updateProject]);
+
+  const handleSelectProject = useCallback((id: string) => {
+    setActiveId(id);
+    setInputText("");
+    setAttachment(null);
+    setIsTyping(false);
+  }, []);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -265,23 +400,18 @@ export default function Index() {
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMsg]);
+    updateProject(activeId, { messages: [...messages, userMsg] });
     setInputText("");
     setAttachment(null);
     setIsTyping(true);
 
     setTimeout(() => {
       const { text: replyText, analysis } = getAiReply(userMsg.text, !!userMsg.attachment);
+      const aiMsg: Message = { id: (Date.now() + 1).toString(), role: "ai", text: replyText, timestamp: new Date(), analysisResult: analysis };
       setIsTyping(false);
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: "ai",
-        text: replyText,
-        timestamp: new Date(),
-        analysisResult: analysis,
-      }]);
+      setProjects(prev => prev.map(p => p.id === activeId ? { ...p, messages: [...p.messages, userMsg, aiMsg] } : p));
     }, 900 + Math.random() * 1100);
-  }, [inputText, attachment]);
+  }, [inputText, attachment, activeId, messages, updateProject]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
@@ -292,7 +422,8 @@ export default function Index() {
     if (!last) return;
     const r = last.analysisResult!;
     const lines = [
-      `ОТЧЁТ АНАЛИЗА — ${new Date().toLocaleString("ru-RU")}`, "",
+      `ОТЧЁТ — ${activeProject.name}`,
+      `Дата: ${new Date().toLocaleString("ru-RU")}`, "",
       "ОЦЕНКИ:", ...r.scores.map(s => `  ${s.label}: ${s.value}%`), "",
       "УГЛЫ СУСТАВОВ:", ...r.angles.map(a => `  ${a.name}: ${a.value}° (порог ${a.threshold}°)`), "",
       "ЗАМЕТКИ:", ...r.notes.map(n => `  • ${n}`), "",
@@ -302,11 +433,11 @@ export default function Index() {
     const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `strike-report-${Date.now()}.txt`; a.click();
+    a.href = url; a.download = `report-${activeProject.name.replace(/\s+/g, "-")}-${Date.now()}.txt`; a.click();
     URL.revokeObjectURL(url);
-  }, [messages, thresholds]);
+  }, [messages, thresholds, activeProject.name]);
 
-  const canSend = !!(inputText.trim() || attachment);
+  const canSend   = !!(inputText.trim() || attachment);
   const hasAnalysis = messages.some(m => m.analysisResult);
 
   return (
@@ -316,10 +447,14 @@ export default function Index() {
       <header className="flex items-center justify-between px-5 py-3 border-b border-border flex-shrink-0"
         style={{ background: "hsl(216 18% 11%)" }}>
         <div className="flex items-center gap-3">
+          <button onClick={() => setSidebarOpen(v => !v)}
+            className="w-7 h-7 rounded flex items-center justify-center hover:bg-secondary transition-colors">
+            <Icon name="PanelLeft" size={15} className="text-muted-foreground" />
+          </button>
           <div className="w-7 h-7 rounded flex items-center justify-center" style={{ background: "hsl(204 80% 52%)" }}>
-            <Icon name="Activity" size={15} className="text-background" />
+            <Icon name="Bot" size={15} className="text-background" />
           </div>
-          <span className="font-semibold tracking-tight" style={{ fontFamily: "'IBM Plex Sans'" }}>Strike Analyzer</span>
+          <span className="font-semibold tracking-tight" style={{ fontFamily: "'IBM Plex Sans'" }}>ИИ Тренер</span>
           <Badge variant="outline" className="text-xs font-mono-custom border-border text-muted-foreground">AI</Badge>
         </div>
 
@@ -347,9 +482,31 @@ export default function Index() {
       {/* Body */}
       <div className="flex-1 flex overflow-hidden">
 
+        {/* Sidebar */}
+        {sidebarOpen && (
+          <ProjectsSidebar
+            projects={projects}
+            activeId={activeId}
+            onSelect={handleSelectProject}
+            onCreate={handleCreateProject}
+            onDelete={handleDeleteProject}
+            onRename={handleRenameProject}
+          />
+        )}
+
         {/* Chat */}
         {activePanel === "chat" && (
           <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Project name bar */}
+            <div className="px-4 py-2 border-b border-border flex items-center gap-2"
+              style={{ background: "hsl(216 18% 11%)" }}>
+              <Icon name="FolderOpen" size={13} style={{ color: "hsl(204 80% 52%)" }} />
+              <span className="text-xs font-medium text-foreground">{activeProject.name}</span>
+              <span className="text-xs text-muted-foreground font-mono-custom">
+                · {activeProject.createdAt.toLocaleDateString("ru-RU")}
+              </span>
+            </div>
+
             <div className="flex-1 overflow-y-auto px-4 py-5 space-y-5 max-w-3xl mx-auto w-full">
               {messages.map(msg => <MessageBubble key={msg.id} msg={msg} />)}
               {isTyping && <TypingIndicator />}
@@ -428,7 +585,7 @@ export default function Index() {
             <div className="max-w-md mx-auto space-y-4 animate-fade-in">
               <div className="mb-6">
                 <h2 className="text-sm font-semibold text-foreground mb-1">Пороговые значения углов</h2>
-                <p className="text-xs text-muted-foreground">Влияют на оценку техники в результатах анализа.</p>
+                <p className="text-xs text-muted-foreground">Настройки для проекта «{activeProject.name}»</p>
               </div>
 
               {([
@@ -445,7 +602,7 @@ export default function Index() {
                     </span>
                   </div>
                   <Slider min={min} max={max} step={1} value={[thresholds[key]]}
-                    onValueChange={([v]) => setThresholds(prev => ({ ...prev, [key]: v }))} />
+                    onValueChange={([v]) => updateProject(activeId, { thresholds: { ...thresholds, [key]: v } })} />
                   <div className="flex justify-between text-xs text-muted-foreground font-mono-custom">
                     <span>{min}°</span><span>{max}°</span>
                   </div>
@@ -453,7 +610,7 @@ export default function Index() {
               ))}
 
               <Button variant="outline" size="sm" className="w-full gap-2 mt-2"
-                onClick={() => setThresholds({ elbowMin: 110, hipMin: 30, kneeMin: 130, shoulderMax: 45 })}>
+                onClick={() => updateProject(activeId, { thresholds: { ...DEFAULT_THRESHOLDS } })}>
                 <Icon name="RotateCcw" size={13} />
                 Сбросить к умолчаниям
               </Button>
